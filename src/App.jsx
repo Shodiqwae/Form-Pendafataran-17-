@@ -2,24 +2,46 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import RegistrationForm from './components/RegistrationForm';
 import SuccessModal from './components/SuccessModal';
+import AlreadySubmittedView from './components/AlreadySubmittedView';
 
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweFdTp9_vaTtL7KcXxXLAM7CjHc3XbfN5izAcmgWgjNl8XsePQWH017Mzw5ms683CC/exec';
+const SUBMISSION_KEY = 'lomba_17an_submitted_data';
 
 export default function App() {
   const [submittedData, setSubmittedData] = useState(null);
+  const [alreadySubmittedData, setAlreadySubmittedData] = useState(null);
 
   useEffect(() => {
-    // Save new Apps Script URL to localStorage
-    localStorage.setItem('lomba_sheets_url', DEFAULT_SCRIPT_URL);
+    // Check if user has already submitted previously
+    try {
+      const savedSubmission = localStorage.getItem(SUBMISSION_KEY);
+      if (savedSubmission) {
+        setAlreadySubmittedData(JSON.parse(savedSubmission));
+      }
+    } catch (e) {
+      console.error('Failed to load submission history', e);
+    }
   }, []);
 
   const handleFormSuccess = (data) => {
+    // Save submission to localStorage to prevent duplicate submissions
+    try {
+      localStorage.setItem(SUBMISSION_KEY, JSON.stringify(data));
+      setAlreadySubmittedData(data);
+    } catch (e) {
+      console.error('Failed to save submission flag', e);
+    }
     setSubmittedData(data);
   };
 
   const handleRegisterNew = () => {
-    setSubmittedData(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Allow registering new family member by clearing submission lock upon confirmation
+    if (window.confirm('Apakah Anda ingin menambah pendaftaran peserta baru?')) {
+      localStorage.removeItem(SUBMISSION_KEY);
+      setAlreadySubmittedData(null);
+      setSubmittedData(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -27,13 +49,20 @@ export default function App() {
       <Navbar />
 
       <main style={{ minHeight: 'calc(100vh - 180px)' }}>
-        <RegistrationForm
-          scriptUrl={DEFAULT_SCRIPT_URL}
-          onSuccess={handleFormSuccess}
-        />
+        {alreadySubmittedData && !submittedData ? (
+          <AlreadySubmittedView
+            data={alreadySubmittedData}
+            onRegisterNew={handleRegisterNew}
+          />
+        ) : (
+          <RegistrationForm
+            scriptUrl={DEFAULT_SCRIPT_URL}
+            onSuccess={handleFormSuccess}
+          />
+        )}
       </main>
 
-      {/* SUCCESS MODAL */}
+      {/* SUCCESS MODAL ON SUBMIT */}
       {submittedData && (
         <SuccessModal
           data={submittedData}
