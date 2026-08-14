@@ -1,26 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CATEGORIES } from '../data/categories';
-import { Home, Calendar, Loader2, Send, CheckCircle2, Plus, Trash2, Users } from 'lucide-react';
+import { Home, Calendar, Loader2, Send, CheckCircle2, Plus, Trash2, Users, RefreshCw, BookmarkCheck } from 'lucide-react';
+
+const DRAFT_KEY = 'lomba_17an_form_draft';
 
 export default function RegistrationForm({ scriptUrl, onSuccess }) {
-  // Array of participants: each participant has their own name and category!
-  const [childrenList, setChildrenList] = useState([
-    {
-      id: Date.now(),
-      namaAnak: '',
-      categoryId: 'sd_1_3'
+  // Initialize state from localStorage draft if available
+  const [childrenList, setChildrenList] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.childrenList && Array.isArray(parsed.childrenList) && parsed.childrenList.length > 0) {
+          return parsed.childrenList;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load draft', e);
     }
-  ]);
+    return [
+      {
+        id: Date.now(),
+        namaAnak: '',
+        categoryId: 'sd_1_3'
+      }
+    ];
+  });
 
-  const [parentData, setParentData] = useState({
-    namaOrtu: '',
-    noWa: '',
-    alamat: '',
-    catatan: ''
+  const [parentData, setParentData] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.parentData) {
+          return parsed.parentData;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load draft', e);
+    }
+    return {
+      namaOrtu: '',
+      noWa: '',
+      alamat: '',
+      catatan: ''
+    };
+  });
+
+  const [hasDraftRestored, setHasDraftRestored] = useState(() => {
+    return Boolean(localStorage.getItem(DRAFT_KEY));
   });
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Auto-save form draft on every change
+  useEffect(() => {
+    try {
+      const isNotEmpty = childrenList.some(c => c.namaAnak.trim()) || parentData.namaOrtu.trim() || parentData.noWa.trim();
+      if (isNotEmpty) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ childrenList, parentData }));
+      }
+    } catch (e) {
+      console.error('Failed to save draft', e);
+    }
+  }, [childrenList, parentData]);
+
+  // Prompt user before closing tab if form has unsaved content
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      const isNotEmpty = childrenList.some(c => c.namaAnak.trim()) || parentData.namaOrtu.trim();
+      if (isNotEmpty && !loading) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [childrenList, parentData, loading]);
+
+  // Clear Draft Function
+  const handleClearDraft = () => {
+    if (window.confirm('Apakah Anda yakin ingin mengosongkan formulir dan menghapus draf?')) {
+      localStorage.removeItem(DRAFT_KEY);
+      setChildrenList([
+        {
+          id: Date.now(),
+          namaAnak: '',
+          categoryId: 'sd_1_3'
+        }
+      ]);
+      setParentData({
+        namaOrtu: '',
+        noWa: '',
+        alamat: '',
+        catatan: ''
+      });
+      setHasDraftRestored(false);
+    }
+  };
 
   // Add participant
   const handleAddChild = () => {
@@ -103,7 +181,6 @@ export default function RegistrationForm({ scriptUrl, onSuccess }) {
     try {
       if (scriptUrl) {
         for (const childPayload of processedChildren) {
-          // Send as text/plain in no-cors mode to prevent browser preflight blocking
           await fetch(scriptUrl, {
             method: 'POST',
             mode: 'no-cors',
@@ -113,13 +190,15 @@ export default function RegistrationForm({ scriptUrl, onSuccess }) {
             body: JSON.stringify(childPayload)
           });
         }
-        
-        onSuccess({ children: processedChildren, parentData, savedToSheets: true });
       } else {
-        // Demo Mode (simulated delay)
         await new Promise(res => setTimeout(res, 800));
-        onSuccess({ children: processedChildren, parentData, savedToSheets: false });
       }
+
+      // Wipe draft upon successful submission
+      localStorage.removeItem(DRAFT_KEY);
+      setHasDraftRestored(false);
+      
+      onSuccess({ children: processedChildren, parentData, savedToSheets: Boolean(scriptUrl) });
     } catch (err) {
       console.error('Error submitting form', err);
       onSuccess({ children: processedChildren, parentData, savedToSheets: Boolean(scriptUrl) });
@@ -138,6 +217,47 @@ export default function RegistrationForm({ scriptUrl, onSuccess }) {
         boxShadow: '0 8px 30px rgba(0,0,0,0.05)' 
       }}>
         
+        {/* DRAFT RESTORED ALERT BANNER */}
+        {hasDraftRestored && (
+          <div style={{
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            padding: '10px 14px',
+            borderRadius: '14px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#15803d' }}>
+              <BookmarkCheck size={18} color="#16a34a" style={{ shrink: 0 }} />
+              <span><strong>Draf Dipulihkan:</strong> Isian formulir Anda sebelumnya otomatis disimpan dan dipulihkan.</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClearDraft}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: '#64748b',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <RefreshCw size={12} /> Kosongkan Draf
+            </button>
+          </div>
+        )}
+
         {/* SECTION 1: DATA PESERTA LOMBA */}
         <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
