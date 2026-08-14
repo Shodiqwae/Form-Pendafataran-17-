@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flag, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 export default function Navbar() {
   return (
@@ -11,19 +11,16 @@ export default function Navbar() {
         
         {/* Main Header Content */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '42px', 
-            height: '42px', 
-            borderRadius: '12px', 
-            background: 'linear-gradient(135deg, #d90429 0%, #a0001e 100%)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(217, 4, 41, 0.3)',
-            flexShrink: 0
-          }}>
-            <Flag size={22} color="#ffffff" />
-          </div>
+          <img
+            src="/hut81-logo.png"
+            alt="Logo HUT RI 81"
+            style={{
+              height: '46px',
+              width: 'auto',
+              objectFit: 'contain',
+              borderRadius: '8px'
+            }}
+          />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               <span className="badge-red" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>HUT RI Ke-81</span>
